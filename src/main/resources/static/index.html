@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<meta charset="UTF-8">
+<title>Control de Mantenimientos</title>
+
+<style>
+
+body{
+font-family: Arial;
+background:#f4f4f4;
+padding:20px;
+margin:0;
+}
+
+h1{
+text-align:center;
+margin-bottom:20px;
+}
+
+#panel{
+background:white;
+padding:10px;
+border-radius:10px;
+margin-bottom:20px;
+box-shadow:0 2px 6px rgba(0,0,0,0.1);
+}
+
+#buscador{
+width:100%;
+padding:10px;
+margin-bottom:20px;
+border-radius:8px;
+border:1px solid #ccc;
+font-size:16px;
+}
+
+#contenedor{
+display:flex;
+flex-direction:column;
+gap:15px;
+}
+
+.tarjeta{
+background:white;
+padding:15px;
+border-radius:10px;
+box-shadow:0 2px 6px rgba(0,0,0,0.1);
+}
+
+.tarjeta h2{
+margin:0;
+margin-bottom:5px;
+}
+
+.tarjeta p{
+margin:4px 0;
+}
+
+.verde{
+color:green;
+font-weight:bold;
+}
+
+.amarillo{
+color:orange;
+font-weight:bold;
+}
+
+.rojo{
+color:red;
+font-weight:bold;
+}
+
+.botones{
+margin-top:10px;
+display:flex;
+flex-wrap:wrap;
+gap:5px;
+}
+
+button{
+flex:1;
+padding:8px;
+border:none;
+background:#3498db;
+color:white;
+border-radius:5px;
+cursor:pointer;
+}
+
+button:hover{
+background:#2980b9;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<h1>Control de Mantenimientos</h1>
+
+<button onclick="logout()">Cerrar sesión</button>
+
+<div id="panel">
+<p>Total de puntos: <span id="total"></span></p>
+<p>Limpiezas vencidas: <span id="limpiezas_rojas"></span></p>
+<p>Preventivos vencidos: <span id="preventivos_rojos"></span></p>
+</div>
+
+<input type="text" id="buscador" placeholder="Buscar edificio...">
+
+<div id="contenedor"></div>
+
+<script>
+    
+if(localStorage.getItem("login") !== "ok"){
+
+window.location = "/login.html";
+
+}    
+
+fetch("/puntos")
+.then(res => res.json())
+.then(data => {
+
+window.puntos = data;
+
+mostrarPuntos(data);
+
+let total = data.length;
+let limpiezasRojas = 0;
+let preventivosRojos = 0;
+
+data.forEach(punto => {
+
+if(punto.estado_limpieza === "ROJO"){
+limpiezasRojas++;
+}
+
+if(punto.estado_preventivo === "ROJO"){
+preventivosRojos++;
+}
+
+});
+
+document.getElementById("total").innerText = total;
+document.getElementById("limpiezas_rojas").innerText = limpiezasRojas;
+document.getElementById("preventivos_rojos").innerText = preventivosRojos;
+
+});
+
+function mostrarPuntos(lista){
+
+const contenedor = document.getElementById("contenedor");
+contenedor.innerHTML = "";
+
+lista.forEach(punto => {
+
+let colorLimpieza="";
+let colorPreventivo="";
+
+if(punto.estado_limpieza === "VERDE") colorLimpieza="verde";
+if(punto.estado_limpieza === "AMARILLO") colorLimpieza="amarillo";
+if(punto.estado_limpieza === "ROJO") colorLimpieza="rojo";
+
+if(punto.estado_preventivo === "VERDE") colorPreventivo="verde";
+if(punto.estado_preventivo === "AMARILLO") colorPreventivo="amarillo";
+if(punto.estado_preventivo === "ROJO") colorPreventivo="rojo";
+
+contenedor.innerHTML += `
+
+<div class="tarjeta">
+
+<h2>${punto.nombre}</h2>
+
+<p>${punto.direccion}</p>
+
+<p>Máquinas: ${punto.maquinas}</p>
+
+<p>Última limpieza: ${punto.fecha_ultima_limpieza}</p>
+
+<p>Último preventivo: ${punto.fecha_ultimo_preventivo}</p>
+
+<p class="${colorLimpieza}">
+Limpieza: ${punto.estado_limpieza}
+</p>
+
+<p class="${colorPreventivo}">
+Preventivo: ${punto.estado_preventivo}
+</p>
+
+<div class="botones">
+
+<button onclick="registrarLimpieza(${punto.id})">Limpieza</button>
+
+<button onclick="registrarPreventivo(${punto.id})">Preventivo</button>
+
+<button onclick="registrarNovedad(${punto.id})">Novedad</button>
+
+<button onclick="registrarRepuesto(${punto.id})">Repuesto</button>
+
+<button onclick="registrarError(${punto.id})">Error</button>
+
+</div>
+
+</div>
+
+`;
+
+});
+
+}
+
+document.getElementById("buscador").addEventListener("input", function(){
+
+let texto = this.value.toLowerCase();
+
+let filtrados = window.puntos.filter(p =>
+p.nombre.toLowerCase().includes(texto)
+);
+
+mostrarPuntos(filtrados);
+
+});
+
+function registrarLimpieza(id){
+
+fetch(`/puntos/${id}/limpieza`,{
+method:"POST"
+})
+.then(()=>location.reload());
+
+}
+
+function registrarPreventivo(id){
+
+fetch(`/puntos/${id}/preventivo`,{
+method:"POST"
+})
+.then(()=>location.reload());
+
+}
+
+function registrarNovedad(id){
+
+let texto = prompt("Escribe la novedad");
+
+if(!texto) return;
+
+fetch(`/puntos/${id}/novedad`,{
+method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
+body: JSON.stringify({
+descripcion:texto
+})
+})
+.then(()=>alert("Novedad guardada"));
+
+}
+
+function registrarRepuesto(id){
+
+let texto = prompt("Escribe el repuesto cambiado");
+
+if(!texto) return;
+
+fetch(`/puntos/${id}/repuesto`,{
+method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
+body: JSON.stringify({
+descripcion:texto
+})
+})
+.then(()=>alert("Repuesto guardado"));
+
+}
+
+function registrarError(id){
+
+let texto = prompt("Escribe el error y el equipo");
+
+if(!texto) return;
+
+fetch(`/puntos/${id}/error`,{
+method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
+body: JSON.stringify({
+descripcion:texto
+})
+})
+.then(()=>alert("Error guardado"));
+
+}
+
+function logout(){
+
+localStorage.removeItem("login");
+
+window.location = "/login.html";
+
+}
+
+</script>
+
+</body>
+</html>
